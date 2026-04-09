@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Pintar 🌿 | Petualangan Belajar Alam</title>
+    <meta name="description" content="Website kuis edukatif interaktif dengan tema tumbuhan untuk anak SD.">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- Live Botanical Background -->
+    <div class="botanical-bg">
+        <div class="deco leaf-1">🌿</div>
+        <div class="deco leaf-2">🍃</div>
+        <div class="deco flower-1">🌸</div>
+        <div class="deco flower-2">🌼</div>
+        <div class="deco leaf-3">🌿</div>
+    </div>
+
+    <!-- UI Header (Visible on Menu & Quiz) -->
+    <header id="global-header" style="display: none;">
+        <div class="user-pill" id="open-profile-btn">
+            <span id="header-avatar" class="header-avatar">🌱</span>
+            <div class="user-info">
+                <span id="header-name" class="header-name">Petualang</span>
+                <span id="header-level" class="header-level">Level 1</span>
+                <span id="header-role" class="header-role" style="font-size: 0.7rem; color: var(--leaf-green); font-weight: 800;">SISWA</span>
+            </div>
+        </div>
+    </header>
+
+    <main id="app">
+        <!-- Profile Setup Screen -->
+        <section id="setup-screen" class="screen">
+            <h1>Selamat Datang! 👤</h1>
+            <h2>Ayo buat profil petualangmu</h2>
+            
+            <div class="setup-container">
+                <div class="input-group">
+                    <label for="username-input">Nama Kamu:</label>
+                    <input type="text" id="username-input" placeholder="Masukkan namamu..." maxlength="15">
+                </div>
+
+                <div class="role-selection">
+                    <label>Pilih Peran:</label>
+                    <div class="role-toggle">
+                        <button class="role-btn active" data-role="siswa">🎒 Siswa</button>
+                        <button class="role-btn" data-role="guru">👨‍🏫 Guru</button>
+                    </div>
+                </div>
+
+                <div id="guru-pin-container" class="input-group" style="display: none; margin-top: 20px;">
+                    <label for="guru-pin">Masukkan PIN Guru:</label>
+                    <input type="password" id="guru-pin" placeholder="PIN 4 Digit" maxlength="4">
+                </div>
+                
+                <div id="avatar-setup-container" style="margin-top: 20px;">
+                    <label>Pilih Avatar Favorit:</label>
+                    <div id="avatar-selector" class="avatar-selector">
+                        <div class="avatar-option selected" data-avatar="🌱">🌱</div>
+                        <div class="avatar-option" data-avatar="🌸">🌸</div>
+                        <div class="avatar-option" data-avatar="🍄">🍄</div>
+                        <div class="avatar-option" data-avatar="🌲">🌲</div>
+                        <div class="avatar-option" data-avatar="🌵">🌵</div>
+                        <div class="avatar-option" data-avatar="🌻">🌻</div>
+                    </div>
+                </div>
+
+                <button id="save-profile-btn" class="btn btn-primary" style="width: 100%; margin-top: 30px;">Mulai Petualangan ➔</button>
+            </div>
+        </section>
+
+        <!-- Start Screen -->
+        <section id="start-screen" class="screen">
+            <h1>Kuis Pintar 🌿</h1>
+            <h2>Petualangan Belajar di Taman Pengetahuan</h2>
+            <div style="text-align: center; margin-bottom: 30px;">
+                <p>Halo Petualang Cilik! Ayo petik ilmu sebanyak-banyaknya di taman ini. Pilih mata pelajaran favoritmu dan mulailah belajar sambil bermain!</p>
+            </div>
+
+            <!-- Global Leaderboard (Hall of Fame) -->
+            <div class="leaderboard-section">
+                <h3>🏆 Papan Juara (Top 5)</h3>
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <!-- Loaded via JS -->
+                    <p style="text-align: center; color: #7f8c8d; font-size: 0.9rem;">Memuat papan juara...</p>
+                </div>
+            </div>
+            
+            <div id="teacher-actions" style="display: none; margin-bottom: 20px; margin-top: 20px;">
+                <button id="go-to-teacher-dashboard-btn" class="btn btn-outline" style="width: 100%; border-color: var(--pai-purple); color: var(--pai-purple);">👨‍🏫 Panel Pantauan Guru</button>
+            </div>
+
+            <button id="go-to-menu-btn" class="btn btn-primary" style="width: 100%;">Masuk ke Taman 🚪</button>
+        </section>
+
+        <!-- Teacher Dashboard Screen -->
+        <section id="teacher-dashboard-screen" class="screen">
+            <h1>Panel Pantauan Guru 👨‍🏫</h1>
+            <div class="dashboard-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button id="refresh-students-btn" class="btn btn-outline">🔄 Perbarui Data</button>
+                <button id="back-from-teacher-btn" class="btn btn-primary">Kembali</button>
+            </div>
+
+            <div class="teacher-stats-container">
+                <table id="students-table" class="students-table">
+                    <thead>
+                        <tr>
+                            <th>Avatar</th>
+                            <th>Nama Siswa</th>
+                            <th>Level</th>
+                            <th>Total XP</th>
+                            <th>Main</th>
+                            <th>Mendaftar Pada</th>
+                        </tr>
+                    </thead>
+                    <tbody id="students-table-body">
+                        <!-- Student data here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Profile Dashboard Screen -->
+        <section id="profile-screen" class="screen">
+            <h1>Profil Petualang 👤</h1>
+            <div class="profile-dashboard">
+                <div class="profile-main">
+                    <span id="dash-avatar" class="dash-avatar">🌱</span>
+                    <h2 id="dash-name">Nama Petualang</h2>
+                    <span id="dash-rank" class="rank-badge">Pecinta Alam</span>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-level">1</span>
+                        <span class="stat-label">Level</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-xp">0</span>
+                        <span class="stat-label">Total XP</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stat-games">0</span>
+                        <span class="stat-label">Main</span>
+                    </div>
+                </div>
+
+                <div class="xp-progress-bar">
+                    <div id="xp-fill" class="xp-fill"></div>
+                </div>
+                <p id="xp-text" style="text-align: center; font-weight: 700; margin-top: 10px; color: var(--bark-brown);"></p>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button id="back-to-menu-btn" class="btn btn-primary" style="flex: 1;">Kembali</button>
+                    <button id="edit-profile-btn" class="btn btn-outline">Edit Profil</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Subject Selection Screen -->
+        <section id="menu-screen" class="screen">
+            <h1>Pilih Pelajaran 📖</h1>
+            <h2>Mau belajar apa hari ini?</h2>
+            
+            <div id="subject-grid" class="subject-grid">
+                <!-- 10 Subjects -->
+                 <div class="subject-card" data-subject="indonesia">
+                    <span class="icon">📖</span>
+                    <span>Bahasa Indonesia</span>
+                 </div>
+                 <div class="subject-card" data-subject="matematika">
+                    <span class="icon">➕</span>
+                    <span>Matematika</span>
+                 </div>
+                 <div class="subject-card" data-subject="ipa">
+                    <span class="icon">🔬</span>
+                    <span>IPA</span>
+                 </div>
+                 <div class="subject-card" data-subject="ips">
+                    <span class="icon">🌍</span>
+                    <span>IPS</span>
+                 </div>
+                 <div class="subject-card" data-subject="pkn">
+                    <span class="icon">🏛️</span>
+                    <span>PKN</span>
+                 </div>
+                 <div class="subject-card" data-subject="pai">
+                    <span class="icon">🕌</span>
+                    <span>PAI</span>
+                 </div>
+                 <div class="subject-card" data-subject="pjok">
+                    <span class="icon">⚽</span>
+                    <span>PJOK</span>
+                 </div>
+                 <div class="subject-card" data-subject="senibudaya">
+                    <span class="icon">🎨</span>
+                    <span>Seni Budaya</span>
+                 </div>
+                 <div class="subject-card" data-subject="inggris">
+                    <span class="icon">🇬🇧</span>
+                    <span>B. Inggris</span>
+                 </div>
+                 <div class="subject-card" data-subject="tik">
+                    <span class="icon">💻</span>
+                    <span>TIK</span>
+                 </div>
+            </div>
+        </section>
+
+        <!-- Quiz Screen -->
+        <section id="quiz-screen" class="screen">
+            <div class="quiz-header">
+                <div>
+                    <span id="subject-tag" class="subject-tag">Matematika</span>
+                    <span id="streak-meter" class="streak-meter">🔥 0</span>
+                </div>
+                <span id="progress-text" class="progress-text">Soal 1 dari 10</span>
+            </div>
+
+            <div class="timer-container">
+                <div id="timer-bar" class="timer-bar"></div>
+            </div>
+
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            
+            <div class="question-card">
+                <p id="question-text" class="question-text"></p>
+                <div id="feedback-overlay" class="feedback-overlay"></div>
+                
+                <div id="options-grid" class="options-grid">
+                    <!-- Options -->
+                </div>
+            </div>
+
+            <!-- Power-up Dock -->
+            <div class="powerup-dock">
+                <button id="pwr-double" class="pwr-btn" title="Pupuk Super (2x Skor)">🚀 x2</button>
+                <button id="pwr-freeze" class="pwr-btn" title="Embun Penyejuk (Stop Waktu)">❄️ Freeze</button>
+                <button id="pwr-shield" class="pwr-btn" title="Benteng Akar (Pelindung)">🛡️ Shield</button>
+            </div>
+
+            <!-- Reaction Overlay (Meme Style) -->
+            <div id="reaction-overlay" class="reaction-overlay">
+                <div id="reaction-content" class="reaction-content">
+                    <span id="reaction-emoji"></span>
+                    <p id="reaction-text"></p>
+                    <button id="next-btn" class="btn btn-primary" style="display: none; width: 100%; margin-top: 30px;">Lanjut ➔</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Result Screen -->
+        <section id="result-screen" class="screen">
+            <h1>Hasil Petualangan 🎉</h1>
+            
+            <div class="score-card">
+                <span class="score-label">TOTAL SKOR</span>
+                <span id="final-score" class="score-number">0</span>
+                
+                <!-- Achievement Garden -->
+                <div id="achievement-garden" class="achievement-garden"></div>
+
+                <p id="result-message" style="font-size: 1.4rem; font-weight: 700; color: var(--bark-brown); margin-top: 20px;"></p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="restart-btn" class="btn btn-primary">Main Lagi 🔄</button>
+                <button id="change-subject-btn" class="btn btn-outline">Ganti Mata Pelajaran 🧭</button>
+            </div>
+        </section>
+
+        <!-- Level Up Overlay -->
+        <div id="level-up-overlay" class="reaction-overlay">
+            <div class="reaction-content">
+                <span style="font-size: 6rem; display: block;">🆙</span>
+                <h1>LEVEL UP! ✨</h1>
+                <p id="level-up-text" style="font-size: 1.5rem; color: var(--leaf-green); font-weight: 800; margin: 20px 0;"></p>
+                <button id="level-up-close-btn" class="btn btn-primary" style="width: 100%;">HEBAT! ➔</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
