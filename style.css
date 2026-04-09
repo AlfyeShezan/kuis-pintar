@@ -28,28 +28,31 @@
 body {
     min-height: 100vh;
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column; /* Urutkan dari atas ke bawah */
+    align-items: center;    /* Tengah secara horizontal */
     background-color: var(--soil-tan);
     background-image: 
         radial-gradient(circle at 10% 20%, rgba(46, 204, 113, 0.08) 0%, transparent 25%),
         radial-gradient(circle at 90% 80%, rgba(52, 152, 219, 0.08) 0%, transparent 25%);
-    padding: 20px;
-    padding-top: 100px; /* Space for fixed header */
+    padding: 10px;
     overflow-x: hidden;
+}
+
+@media (min-width: 600px) {
+    body {
+        padding: 20px;
+    }
 }
 
 /* Global Header */
 header {
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
-    padding: 20px;
+    max-width: 850px; /* Samakan dengan lebar maksimal kotak kuis */
+    padding: 15px 0;
     z-index: 1000;
     display: flex;
     justify-content: flex-end;
-    pointer-events: none;
+    margin-bottom: 20px;
 }
 
 .user-pill {
@@ -57,26 +60,36 @@ header {
     backdrop-filter: blur(10px);
     border: 3px solid white;
     box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-    padding: 10px 20px;
+    padding: 8px 15px;
     border-radius: 40px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     cursor: pointer;
     pointer-events: auto;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    max-width: 180px;
 }
 
-.user-pill:hover {
-    transform: translateY(5px);
-    background: var(--leaf-green);
-    color: white;
+@media (min-width: 600px) {
+    .user-pill {
+        padding: 10px 20px;
+        gap: 12px;
+        max-width: none;
+    }
 }
 
-.header-avatar { font-size: 2rem; }
-.user-info { display: flex; flex-direction: column; }
-.header-name { font-weight: 800; font-size: 1rem; line-height: 1; }
-.header-level { font-size: 0.8rem; font-weight: 600; opacity: 0.8; }
+.header-avatar { font-size: clamp(1.5rem, 5vw, 2rem); }
+.user-info { display: flex; flex-direction: column; min-width: 0; }
+.header-name { 
+    font-weight: 800; 
+    font-size: clamp(0.8rem, 3vw, 1rem); 
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.header-level { font-size: 0.75rem; font-weight: 600; opacity: 0.8; }
 
 /* Botanical Background Animation */
 .botanical-bg {
@@ -189,18 +202,27 @@ input[type="text"]:focus {
 .avatar-selector {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
+    gap: 10px;
     margin: 15px 0;
 }
 
+@media (max-width: 400px) {
+    .avatar-selector {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 .avatar-option {
-    font-size: 2.5rem;
+    font-size: clamp(1.8rem, 8vw, 2.5rem);
     background: white;
     border: 4px solid var(--soil-dark);
     border-radius: 20px;
-    padding: 15px;
+    padding: 10px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .avatar-option:hover {
@@ -228,7 +250,8 @@ input[type="text"]:focus {
 
 .role-toggle {
     display: flex;
-    gap: 15px;
+    flex-wrap: wrap; /* Menumpuk di layar sempit */
+    gap: 10px;
 }
 
 .role-btn {
@@ -254,12 +277,19 @@ input[type="text"]:focus {
     color: var(--leaf-green);
 }
 
-/* Subject Menu Grid */
+/* Subject Menu Grid - RESPONSIVE */
 .subject-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 15px;
     margin-top: 20px;
+}
+
+@media (min-width: 768px) {
+    .subject-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 20px;
+    }
 }
 
 /* Leaderboard Hall of Fame */
@@ -435,18 +465,18 @@ input[type="text"]:focus {
 
 .question-card {
     background: white;
-    padding: 40px;
+    padding: 30px 20px;
     border-radius: 35px;
     margin-bottom: 25px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.02);
 }
 
 .question-text {
-    font-size: 1.6rem;
+    font-size: clamp(1.2rem, 4vw, 1.6rem);
     font-weight: 800;
     color: var(--text-dark);
     margin-bottom: 30px;
-    line-height: 1.4;
+    line-height: 1.3;
 }
 
 /* Power-up Dock */
@@ -756,12 +786,35 @@ input[type="text"]:focus {
     100% { transform: scale(1); opacity: 1; }
 }
 
-/* Mobile */
+/* Mobile Adjustments */
 @media (max-width: 800px) {
-    .subject-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
-    .options-grid { grid-template-columns: 1fr; }
-    #app { padding: 30px 20px; border-radius: 0; }
-    h1 { font-size: 2.2rem; }
+    #app { 
+        padding: clamp(20px, 5vw, 40px); 
+        border-radius: 30px; 
+        max-width: 100%;
+        border-width: 4px;
+    }
+    h1 { font-size: clamp(1.8rem, 8vw, 3rem); }
+    h2 { font-size: 1.1rem; margin-bottom: 25px; }
+}
+
+@media (max-width: 600px) {
+    .subject-grid { 
+        grid-template-columns: repeat(2, 1fr); 
+        gap: 12px; 
+    }
+    .options-grid { grid-template-columns: 1fr; gap: 12px; }
+    .option-btn { padding: 18px; font-size: 1.1rem; }
+    
+    .stats-grid { grid-template-columns: 1fr; }
+    
+    /* Tabel Dashboard Responsif */
+    .teacher-stats-container {
+        border-radius: 20px;
+    }
+    
     .students-table th:nth-child(5), .students-table td:nth-child(5),
-    .students-table th:nth-child(6), .students-table td:nth-child(6) { display: none; }
+    .students-table th:nth-child(6), .students-table td:nth-child(6) { 
+        display: none; 
+    }
 }
