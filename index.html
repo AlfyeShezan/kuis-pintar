@@ -37,23 +37,23 @@
             <h1>Selamat Datang! 👤</h1>
             <h2>Ayo buat profil petualangmu</h2>
             
-            <div class="setup-container">
+            <form id="setup-form" class="setup-container">
                 <div class="input-group">
                     <label for="username-input">Nama Kamu:</label>
-                    <input type="text" id="username-input" placeholder="Masukkan namamu..." maxlength="15">
+                    <input type="text" id="username-input" placeholder="Masukkan namamu..." maxlength="15" required>
                 </div>
 
                 <div class="role-selection">
                     <label>Pilih Peran:</label>
                     <div class="role-toggle">
-                        <button class="role-btn active" data-role="siswa">🎒 Siswa</button>
-                        <button class="role-btn" data-role="guru">👨‍🏫 Guru</button>
+                        <button type="button" class="role-btn active" data-role="siswa">🎒 Siswa</button>
+                        <button type="button" class="role-btn" data-role="guru">👨‍🏫 Guru</button>
                     </div>
                 </div>
 
                 <div id="guru-pin-container" class="input-group" style="display: none; margin-top: 20px;">
                     <label for="guru-pin">Masukkan PIN Guru:</label>
-                    <input type="password" id="guru-pin" placeholder="PIN 4 Digit" maxlength="4">
+                    <input type="password" id="guru-pin" placeholder="PIN 4 Digit" maxlength="4" autocomplete="current-password">
                 </div>
                 
                 <div id="avatar-setup-container" style="margin-top: 20px;">
@@ -68,8 +68,8 @@
                     </div>
                 </div>
 
-                <button id="save-profile-btn" class="btn btn-primary" style="width: 100%; margin-top: 30px;">Mulai Petualangan ➔</button>
-            </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 30px;">Mulai Petualangan ➔</button>
+            </form>
         </section>
 
         <!-- Start Screen -->
@@ -112,6 +112,7 @@
                             <th>Nama Siswa</th>
                             <th>Level</th>
                             <th>Total XP</th>
+                            <th>Benar</th>
                             <th>Main</th>
                             <th>Mendaftar Pada</th>
                         </tr>
@@ -143,8 +144,8 @@
                         <span class="stat-label">Total XP</span>
                     </div>
                     <div class="stat-card">
-                        <span class="stat-value" id="stat-games">0</span>
-                        <span class="stat-label">Main</span>
+                        <span class="stat-value" id="stat-correct">0</span>
+                        <span class="stat-label">Total Benar</span>
                     </div>
                 </div>
 
@@ -152,6 +153,7 @@
                     <div id="xp-fill" class="xp-fill"></div>
                 </div>
                 <p id="xp-text" style="text-align: center; font-weight: 700; margin-top: 10px; color: var(--bark-brown);"></p>
+                <button id="show-my-report-btn" class="btn btn-outline" style="width: 100%; margin-top: 15px; border-color: var(--leaf-green); color: var(--leaf-green);">📊 Lihat Rapor Detail</button>
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button id="back-to-menu-btn" class="btn btn-primary" style="flex: 1;">Kembali</button>
@@ -261,6 +263,9 @@
             <div class="score-card">
                 <span class="score-label">TOTAL SKOR</span>
                 <span id="final-score" class="score-number">0</span>
+                <div id="correct-summary" style="font-size: 1.5rem; font-weight: 800; color: var(--bark-brown); margin: 10px 0;">
+                    Jawaban Benar: <span id="total-correct" style="color: var(--leaf-green);">0</span> / 10
+                </div>
                 
                 <!-- Achievement Garden -->
                 <div id="achievement-garden" class="achievement-garden"></div>
@@ -283,6 +288,20 @@
                 <button id="level-up-close-btn" class="btn btn-primary" style="width: 100%;">HEBAT! ➔</button>
             </div>
         </div>
+        <!-- Detail Modal (Subject Breakdown) -->
+        <div id="detail-modal" class="reaction-overlay" style="z-index: 2000;">
+            <div class="reaction-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto; text-align: left;">
+                <h1 id="modal-title" style="font-size: 1.8rem; margin-bottom: 5px;">Rapor Petualang 📊</h1>
+                <p id="modal-subtitle" style="color: var(--bark-brown); font-weight: 700; margin-bottom: 20px;">Detail Jawaban Benar per Mata Pelajaran</p>
+                
+                <div id="subject-report-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px;">
+                    <!-- Report items here -->
+                </div>
+
+                <button id="close-modal-btn" class="btn btn-primary" style="width: 100%;">Tutup Laporan</button>
+            </div>
+        </div>
+
     </main>
 
     <script src="script.js"></script>
