@@ -701,14 +701,14 @@ async function showStudentDetail(name) {
     const title = document.getElementById('modal-title');
     const list = document.getElementById('subject-report-list');
 
-    title.innerText = `Rapor ${name} 📊`;
-    list.innerHTML = '<p style="text-align:center;">Memuat data rapor...</p>';
+    title.innerText = `Riwayat ${name} 📊`;
+    list.innerHTML = '<p style="text-align:center;">Memuat riwayat...</p>';
     modal.style.display = 'flex';
 
     try {
         const { data: records, error } = await _supabase
             .from('leaderboard')
-            .select('subject, correct_count')
+            .select('subject, correct_count, play_date')
             .eq('user_name', name)
             .order('play_date', { ascending: false });
 
@@ -717,35 +717,37 @@ async function showStudentDetail(name) {
             throw error;
         }
 
-        // Grouping & Aggregating
-        const stats = {};
-        records.forEach(r => {
-            stats[r.subject] = (stats[r.subject] || 0) + (r.correct_count || 0);
-        });
-
         list.innerHTML = '';
         const subjectNames = {
-            indonesia: "Bahasa Indonesia", matematika: "Matematika", ipa: "IPA", ips: "IPS",
+            indonesia: "B. Indonesia", matematika: "Matematika", ipa: "IPA", ips: "IPS",
             pkn: "PKN", pai: "PAI", pjok: "PJOK", senibudaya: "Seni Budaya", inggris: "B. Inggris", tik: "TIK"
         };
 
-        const subjectsUsed = Object.keys(stats);
-        if (subjectsUsed.length === 0) {
-            list.innerHTML = '<p style="text-align:center; color:#7f8c8d;">Belum ada kuis yang diselesaikan. 🌱</p>';
+        if (records.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color:#7f8c8d;">Belum ada riwayat kuis. 🌱</p>';
             return;
         }
 
-        subjectsUsed.forEach(sub => {
+        records.forEach(r => {
+            const date = new Date(r.play_date);
+            const dateStr = date.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+            const timeStr = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
             const row = document.createElement('div');
-            row.style = "display:flex; justify-content:space-between; align-items:center; background:var(--soil-tan); padding:12px 20px; border-radius:15px; border-left:5px solid var(--leaf-green);";
+            row.style = "display:flex; flex-direction:column; background:var(--soil-tan); padding:10px 15px; border-radius:12px; border-left:4px solid var(--leaf-green); margin-bottom: 8px; font-size: 0.9rem;";
             row.innerHTML = `
-                <span style="font-weight:700;">${subjectNames[sub] || sub}</span>
-                <span style="font-weight:800; color:var(--leaf-green); font-size:1.1rem;">${stats[sub]} Benar</span>
+                <div style="display:flex; justify-content:space-between; color:#7f8c8d; font-size:0.75rem; margin-bottom:4px;">
+                    <span>📅 ${dateStr} - ${timeStr}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:700; color:var(--bark-brown);">${subjectNames[r.subject] || r.subject}</span>
+                    <span style="font-weight:800; color:var(--leaf-green);">${r.correct_count} / 10 Benar</span>
+                </div>
             `;
             list.appendChild(row);
         });
     } catch (e) {
-        list.innerHTML = '<p style="text-align:center; color:red;">Gagal memuat detail rapor.</p>';
+        list.innerHTML = '<p style="text-align:center; color:red;">Gagal memuat riwayat.</p>';
     }
 }
 
