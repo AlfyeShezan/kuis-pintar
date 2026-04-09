@@ -130,35 +130,46 @@ const ALL_QUESTIONS = {
 // Supabase Integration Utility
 const ProfileManager = {
     sessionKey: 'kuis_pintar_current_user',
-    
+
     async getRemote(name) {
         const { data, error } = await _supabase
             .from('users')
             .select('*')
             .eq('name', name)
             .single();
-        
+
         if (error) return { not_found: true };
         return data;
     },
-    
+
     async saveRemote(data) {
-        const { error } = await _supabase
+        // PERBAIKAN: Sertakan ID jika ada agar Supabase tahu ini adalah UPDATE
+        const payload = {
+            name: data.name,
+            avatar: data.avatar,
+            role: data.role,
+            xp: data.xp,
+            games_played: data.games_played
+        };
+
+        if (data.id) payload.id = data.id;
+
+        const { data: savedData, error } = await _supabase
             .from('users')
-            .upsert({ 
-                name: data.name, 
-                avatar: data.avatar, 
-                role: data.role, 
-                xp: data.xp, 
-                games_played: data.games_played 
-            }, { onConflict: 'name' });
-            
-        if (!error) {
-            localStorage.setItem(this.sessionKey, data.name);
-            this.updateHeader(data);
+            .upsert(payload, { onConflict: 'name' })
+            .select()
+            .single();
+
+        if (!error && savedData) {
+            currentUser = savedData; // Update global state
+            localStorage.setItem(this.sessionKey, savedData.name);
+            this.updateHeader(savedData);
+        } else if (error) {
+            console.error("⛔ GAGAL SIMPAN PROFIL:", error);
+            alert("Gagal menyimpan profil ke database. Cek koneksi internet atau SQL di Supabase.");
         }
     },
-    
+
     updateHeader(p) {
         if (!p) return;
         document.getElementById('global-header').style.display = 'flex';
@@ -166,18 +177,25 @@ const ProfileManager = {
         document.getElementById('header-name').innerText = p.name;
         document.getElementById('header-level').innerText = `Level ${this.calculateLevel(p.xp)}`;
         document.getElementById('header-role').innerText = (p.role || 'siswa').toUpperCase();
-        
+
         document.getElementById('teacher-actions').style.display = p.role === 'guru' ? 'block' : 'none';
+
+        // Update profile screen stats if they exist
+        if (document.getElementById('stat-correct')) {
+            document.getElementById('stat-level').innerText = this.calculateLevel(p.xp);
+            document.getElementById('stat-xp').innerText = p.xp;
+            document.getElementById('stat-correct').innerText = p.total_correct || 0;
+        }
     },
-    
+
     calculateLevel(xp) {
         return Math.floor(Math.sqrt((xp || 0) / 50)) + 1;
     },
-    
+
     getXPForLevel(level) {
         return Math.pow(level - 1, 2) * 50;
     },
-    
+
     getRank(level) {
         if (level >= 10) return "Pelindung Alam 👑";
         if (level >= 8) return "Pohon Besar 🌳";
@@ -257,7 +275,8 @@ const elements = {
     levelUpOverlay: document.getElementById('level-up-overlay'),
     levelUpText: document.getElementById('level-up-text'),
     studentsTableBody: document.getElementById('students-table-body'),
-    leaderboardList: document.getElementById('leaderboard-list')
+    leaderboardList: document.getElementById('leaderboard-list'),
+    totalCorrect: document.getElementById('total-correct')
 };
 
 const powerupBtns = {
@@ -271,6 +290,7 @@ let currentSubject = "";
 let currentQuestions = [];
 let currentIndex = 0;
 let score = 0;
+let correctCount = 0;
 let answered = false;
 let streak = 0;
 let timer = null;
@@ -317,8 +337,9 @@ document.querySelectorAll('.avatar-option').forEach(opt => {
 });
 
 document.getElementById('save-profile-btn').onclick = async () => {
-    const name = document.getElementById('username-input').value.trim() || 'Petualang';
-    
+    const newName = document.getElementById('username-input').value.trim() || 'Petualang';
+    const isEdit = document.querySelector('#setup-screen h1').innerText === "Edit Profil 👤";
+
     if (selectedRole === 'guru') {
         const pin = document.getElementById('guru-pin').value;
         if (pin !== '8888') {
@@ -328,12 +349,23 @@ document.getElementById('save-profile-btn').onclick = async () => {
         selectedAvatar = "👨‍🏫";
     }
 
-    let existing = await ProfileManager.getRemote(name);
-    if (existing && !existing.not_found) {
-        currentUser = existing;
+    if (isEdit) {
+        // Update data objek currentUser yang sedang aktif
+        currentUser.name = newName;
+        currentUser.avatar = selectedAvatar;
+        currentUser.role = selectedRole;
     } else {
-        currentUser = { name: name, avatar: selectedAvatar, role: selectedRole, xp: 0, games_played: 0 };
+        let existing = await ProfileManager.getRemote(newName);
+        if (existing && !existing.not_found) {
+            currentUser = existing;
+            currentUser.avatar = selectedAvatar;
+            currentUser.role = selectedRole;
+        } else {
+            currentUser = { name: newName, avatar: selectedAvatar, role: selectedRole, xp: 0, games_played: 0 };
+        }
     }
+
+    // Kirim ke database
     await ProfileManager.saveRemote(currentUser);
     showScreen('start');
     fetchAndShowLeaderboard();
@@ -347,9 +379,14 @@ document.getElementById('edit-profile-btn').onclick = () => {
     document.getElementById('username-input').value = currentUser.name;
     selectedAvatar = currentUser.avatar;
     selectedRole = currentUser.role || 'siswa';
+
+    // Sinkronisasi UI
     document.querySelectorAll('.role-btn').forEach(b => b.classList.toggle('active', b.dataset.role === selectedRole));
     document.getElementById('guru-pin-container').style.display = selectedRole === 'guru' ? 'block' : 'none';
+    document.getElementById('avatar-setup-container').style.display = selectedRole === 'guru' ? 'none' : 'block';
+
     document.querySelectorAll('.avatar-option').forEach(o => o.classList.toggle('selected', o.dataset.avatar === selectedAvatar));
+
     document.querySelector('#setup-screen h1').innerText = "Edit Profil 👤";
     showScreen('setup');
 };
@@ -389,12 +426,13 @@ function startSubject(subjectKey) {
     currentQuestions = [...ALL_QUESTIONS[subjectKey]].sort(() => Math.random() - 0.5);
     currentIndex = 0;
     score = 0;
+    correctCount = 0;
     streak = 0;
     powerups = { double: true, freeze: true, shield: true };
     activePowerup = null;
     updatePowerupUI();
     updateStreakUI();
-    
+
     showScreen('quiz');
     showQuestion();
 }
@@ -406,13 +444,13 @@ function showQuestion() {
     timeLeft = 100;
     elements.timerBar.style.width = '100%';
     elements.timerBar.style.background = '#ff4757';
-    
+
     const data = currentQuestions[currentIndex];
     elements.progressBar.style.width = `${(currentIndex / 10) * 100}%`;
     elements.progressText.innerText = `Soal ${currentIndex + 1} dari 10`;
     elements.questionText.innerText = data.q;
     elements.optionsGrid.innerHTML = '';
-    
+
     data.a.forEach((opt, idx) => {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
@@ -438,13 +476,14 @@ function handleAnswer(idx, btn) {
     if (answered) return;
     answered = true;
     clearInterval(timer);
-    
+
     const correctIdx = currentQuestions[currentIndex].c;
     const isCorrect = idx === correctIdx;
     let reaction = {};
-    
+
     if (isCorrect) {
         streak++;
+        correctCount++;
         let points = 10 + Math.floor(timeLeft / 10);
         if (activePowerup === 'double') points *= 2;
         score += points;
@@ -463,11 +502,11 @@ function handleAnswer(idx, btn) {
         elements.optionsGrid.querySelectorAll('.option-btn')[correctIdx].classList.add('correct');
         playTone('wrong');
     }
-    
+
     activePowerup = null;
     updateStreakUI();
     updatePowerupUI();
-    
+
     setTimeout(() => {
         if (!screens.quiz.classList.contains('active')) return;
         showReaction(reaction);
@@ -475,7 +514,7 @@ function handleAnswer(idx, btn) {
             if (screens.quiz.classList.contains('active') && elements.reactionOverlay.style.display === 'flex') goToNextQuestion();
         }, 3000);
     }, 1000);
-    
+
     elements.optionsGrid.querySelectorAll('button').forEach(b => b.disabled = true);
     elements.nextBtn.style.display = 'block';
 }
@@ -520,26 +559,31 @@ function updateStreakUI() {
 async function showResult() {
     showScreen('result');
     elements.finalScore.innerText = score;
-    
+    elements.totalCorrect.innerText = correctCount;
+
     if (currentUser.role === 'siswa') {
         const oldLevel = ProfileManager.calculateLevel(currentUser.xp);
-        
-        // Use RPC to avoid null + math issues
-        const { error } = await _supabase.rpc('increment_stats', { 
-            user_name_input: currentUser.name, 
-            score_gain: score 
-        });
 
-        // Save individual game record
-        await _supabase.from('leaderboard').insert({
+        // Update total_correct via RPC
+        const { error: rpcError } = await _supabase.rpc('increment_stats', {
+            user_name_input: currentUser.name,
+            score_gain: score,
+            correct_gain: correctCount
+        });
+        if (rpcError) console.error("⚠️ Error RPC increment_stats:", rpcError);
+
+        // Save individual game record with correct_count
+        const { error: lbError } = await _supabase.from('leaderboard').insert({
             user_name: currentUser.name,
             subject: currentSubject,
-            score: score
+            score: score,
+            correct_count: correctCount
         });
+        if (lbError) console.error("⚠️ Error Insert Leaderboard:", lbError);
 
         currentUser = await ProfileManager.getRemote(currentUser.name);
         ProfileManager.updateHeader(currentUser);
-        
+
         const newLevel = ProfileManager.calculateLevel(currentUser.xp);
         if (newLevel > oldLevel) showLevelUp(newLevel);
     }
@@ -561,19 +605,19 @@ async function showDashboard() {
     currentUser = await ProfileManager.getRemote(currentUser.name);
     const lvl = ProfileManager.calculateLevel(currentUser.xp);
     showScreen('profile');
-    
+
     document.getElementById('dash-avatar').innerText = currentUser.avatar;
     document.getElementById('dash-name').innerText = currentUser.name;
     document.getElementById('dash-rank').innerText = ProfileManager.getRank(lvl);
     document.getElementById('stat-level').innerText = lvl;
     document.getElementById('stat-xp').innerText = currentUser.xp;
-    document.getElementById('stat-games').innerText = currentUser.games_played;
-    
+    document.getElementById('stat-correct').innerText = currentUser.total_correct || 0;
+
     const curXP = currentUser.xp - ProfileManager.getXPForLevel(lvl);
     const nextXP = ProfileManager.getXPForLevel(lvl + 1) - ProfileManager.getXPForLevel(lvl);
     const perc = (curXP / nextXP) * 100;
     document.getElementById('xp-fill').style.width = `${perc}%`;
-    document.getElementById('xp-text').innerText = `${curXP} / ${nextXP} XP menuju Level ${lvl+1}`;
+    document.getElementById('xp-text').innerText = `${curXP} / ${nextXP} XP menuju Level ${lvl + 1}`;
 }
 
 async function showTeacherDashboard() {
@@ -618,28 +662,29 @@ async function fetchAndRenderStudents() {
     try {
         const { data: students, error } = await _supabase
             .from('users')
-            .select('name, avatar, xp, games_played, created_at')
+            .select('name, avatar, xp, games_played, total_correct, created_at')
             .eq('role', 'siswa')
             .order('xp', { ascending: false });
-        
+
         if (error) {
-            elements.studentsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">⚠️ Error: ${error.message}</td></tr>`;
+            elements.studentsTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">⚠️ Error: ${error.message}</td></tr>`;
             return;
         }
 
         elements.studentsTableBody.innerHTML = '';
         if (students.length === 0) {
-            elements.studentsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#7f8c8d;">Belum ada siswa yang terdaftar. Ayo ajak siswa bermain! 🎒</td></tr>';
+            elements.studentsTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#7f8c8d;">Belum ada siswa yang terdaftar. Ayo ajak siswa bermain! 🎒</td></tr>';
             return;
         }
-        
+
         students.forEach(s => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><span style="font-size: 2rem;">${s.avatar || '🎓'}</span></td>
-                <td>${s.name}</td>
+                <td><button onclick="showStudentDetail('${s.name}')" style="background:none; border:none; border-bottom:1px dashed var(--leaf-green); color:var(--bark-brown); font-weight:800; cursor:pointer; font-size:1rem; padding:0;">${s.name}</button></td>
                 <td>${ProfileManager.calculateLevel(s.xp)}</td>
                 <td>${s.xp}</td>
+                <td style="color: var(--leaf-green); font-weight: 800;">${s.total_correct || 0}</td>
                 <td>${s.games_played}</td>
                 <td style="font-size: 0.8rem; color: #7f8c8d;">${new Date(s.created_at).toLocaleDateString()}</td>
             `;
@@ -647,9 +692,66 @@ async function fetchAndRenderStudents() {
         });
     } catch (e) {
         console.error("Gagal mengambil data siswa:", e);
-        elements.studentsTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red; padding:20px;">⚠️ Koneksi Supabase bermasalah.</td></tr>';
+        elements.studentsTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red; padding:20px;">⚠️ Koneksi Supabase bermasalah.</td></tr>';
     }
 }
+
+async function showStudentDetail(name) {
+    const modal = document.getElementById('detail-modal');
+    const title = document.getElementById('modal-title');
+    const list = document.getElementById('subject-report-list');
+
+    title.innerText = `Rapor ${name} 📊`;
+    list.innerHTML = '<p style="text-align:center;">Memuat data rapor...</p>';
+    modal.style.display = 'flex';
+
+    try {
+        const { data: records, error } = await _supabase
+            .from('leaderboard')
+            .select('subject, correct_count')
+            .eq('user_name', name)
+            .order('play_date', { ascending: false });
+
+        if (error || !records) {
+            console.error("⚠️ Error Fetching Report:", error);
+            throw error;
+        }
+
+        // Grouping & Aggregating
+        const stats = {};
+        records.forEach(r => {
+            stats[r.subject] = (stats[r.subject] || 0) + (r.correct_count || 0);
+        });
+
+        list.innerHTML = '';
+        const subjectNames = {
+            indonesia: "Bahasa Indonesia", matematika: "Matematika", ipa: "IPA", ips: "IPS",
+            pkn: "PKN", pai: "PAI", pjok: "PJOK", senibudaya: "Seni Budaya", inggris: "B. Inggris", tik: "TIK"
+        };
+
+        const subjectsUsed = Object.keys(stats);
+        if (subjectsUsed.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color:#7f8c8d;">Belum ada kuis yang diselesaikan. 🌱</p>';
+            return;
+        }
+
+        subjectsUsed.forEach(sub => {
+            const row = document.createElement('div');
+            row.style = "display:flex; justify-content:space-between; align-items:center; background:var(--soil-tan); padding:12px 20px; border-radius:15px; border-left:5px solid var(--leaf-green);";
+            row.innerHTML = `
+                <span style="font-weight:700;">${subjectNames[sub] || sub}</span>
+                <span style="font-weight:800; color:var(--leaf-green); font-size:1.1rem;">${stats[sub]} Benar</span>
+            `;
+            list.appendChild(row);
+        });
+    } catch (e) {
+        list.innerHTML = '<p style="text-align:center; color:red;">Gagal memuat detail rapor.</p>';
+    }
+}
+
+// Modal Listeners
+document.getElementById('close-modal-btn').onclick = () => document.getElementById('detail-modal').style.display = 'none';
+document.getElementById('show-my-report-btn').onclick = () => showStudentDetail(currentUser.name);
 
 function generateGarden(score) {
     const garden = elements.achievementGarden;
@@ -670,6 +772,6 @@ document.addEventListener('mousemove', (e) => {
     const x = (window.innerWidth / 2 - e.pageX) / 50;
     const y = (window.innerHeight / 2 - e.pageY) / 50;
     document.querySelectorAll('.deco').forEach((d, i) => {
-        d.style.transform = `translate(${x * (i+1)*0.5}px, ${y * (i+1)*0.5}px)`;
+        d.style.transform = `translate(${x * (i + 1) * 0.5}px, ${y * (i + 1) * 0.5}px)`;
     });
 });
